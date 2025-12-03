@@ -1,6 +1,52 @@
+<div align="center">
+
+<!-- Logo -->
+<img src="https://iili.io/fIJxhAX.png" alt="Feel Logo" width="600"/>
+
+<br/>
+
+### *Your AI-powered mood companion*
+
+<br/>
+
+[![Electron](https://img.shields.io/badge/Electron-47848F?style=for-the-badge&logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Google Gemini](https://img.shields.io/badge/Google_Gemini-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white)](https://deepmind.google/technologies/gemini/)
+
+<br/>
+
+[Getting Started](#getting-started) · [Architecture](#system-architecture) · [Configuration](#configuration-surface) · [Packaging](#packaging-notes)
+
+---
+
+</div>
+
+<br/>
+
 # Feel — Gemini-Assisted Mood Companion
 
 Feel is a desktop application built with Electron, React, and TypeScript that interprets free-form user messages, infers emotional tone through Google Gemini, and renders a responsive UI that mirrors the detected mood. The renderer and main processes are fully isolated, and all inter-process data flows through typed controllers to keep the AI integration and presentation layer decoupled.
+
+---
+
+## Screenshots
+
+<div align="center">
+<table>
+<tr>
+<td><img src="screenshots/ilovecats.png" alt="I Love Cats" width="400"/></td>
+<td><img src="screenshots/iwannatravel.png" alt="I Wanna Travel" width="400"/></td>
+</tr>
+<tr>
+<td><img src="screenshots/moodanalysis.png" alt="Mood Analysis" width="400"/></td>
+<td><img src="screenshots/ifeelsad.png" alt="Feel sad" width="400"/></td>
+</tr>
+</table>
+</div>
+
+---
 
 ## Core Capabilities
 
