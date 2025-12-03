@@ -1,7 +1,7 @@
 <div align="center">
 
 <!-- Logo -->
-<img src="https://iili.io/fI3lL6N.png" alt="Feel Logo" width="600"/>
+<img src="https://iili.io/fI3EvF2.png" alt="Feel Logo" width="600"/>
 
 <br/>
 
