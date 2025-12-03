@@ -111,6 +111,7 @@ const MainInterface: React.FC<MainInterfaceProps> = ({
         isOpen={showHistory}
         onClose={onHistoryClose}
         history={conversationHistory}
+        language={language}
       />
     </div>
   );

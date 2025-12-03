@@ -16,8 +16,8 @@ const ConfirmationPopup = ({
   onConfirm,
   title,
   message,
-  confirmText = "Confirmer",
-  cancelText = "Annuler"
+  confirmText = "Confirm",
+  cancelText = "Cancel"
 }: ConfirmationPopupProps) => {
   const handleConfirm = () => {
     onConfirm();
