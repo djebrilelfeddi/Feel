@@ -1,226 +1,116 @@
-# Feel - Application d'Analyse d'Humeur IA
+# Feel — Gemini-Assisted Mood Companion
 
-Feel est une application desktop basée sur Electron qui analyse les messages des utilisateurs pour déterminer leur état émotionnel en utilisant l'API Google Gemini AI. Elle fournit un retour visuel à travers des arrière-plans dynamiques, des emojis flottants et des réponses stylisées.
+Feel is a desktop application built with Electron, React, and TypeScript that interprets free-form user messages, infers emotional tone through Google Gemini, and renders a responsive UI that mirrors the detected mood. The renderer and main processes are fully isolated, and all inter-process data flows through typed controllers to keep the AI integration and presentation layer decoupled.
 
-## Fonctionnalités
+## Core Capabilities
 
-- **Analyse d'Humeur** : Utilise Gemini AI pour analyser l'entrée utilisateur et déterminer l'état émotionnel
-- **Interface Utilisateur Dynamique** : Arrière-plans en dégradé et animations qui s'adaptent à l'humeur analysée
-- **Historique des Conversations** : Stockage persistant des conversations avec localStorage
-- **Support Multi-langue** : Traductions français et anglais
-- **Panneau de Paramètres** : Langue configurable, modèle et vitesse de réponse
-- **Multi-plateforme** : Construit avec Electron pour Windows, macOS et Linux
+- Gemini-backed analysis pipeline that validates responses, enforces JSON schemas, and enriches the UI with mood metadata.
+- Adaptive interface built on Tailwind CSS, DaisyUI, and custom animation layers that drive gradients, emoji animations, and conversational feedback.
+- Persistent conversation history stored in compressed localStorage, with import/export, cleanup, and quota handling.
+- Multi-language UX (French/English) with runtime model switching and configurable typewriter speed.
+- Hardened Electron surface through context isolation, preload-only environment exposure, and a strict Content Security Policy.
 
-## Architecture
+## System Architecture
 
-L'application suit une architecture modulaire avec séparation des préoccupations :
+- **Main process** (`src/main/index.ts`): owns the `BrowserWindow`, applies CSP headers, and keeps the application menu disabled for kiosk-style deployments.
+- **Preload bridge** (`src/main/preload.ts`): exposes only the `GEMINI_API_KEY` via `contextBridge`, preserving isolation from Node primitives.
+- **Renderer** (`src/renderer`): React 18 + TypeScript, bundled with Electron Forge’s Webpack plugin. UI state originates from `useApplicationController`, which wraps a set of pure classes under `src/renderer/classes`.
+- **Domain controllers**:
+  - `ApplicationController` orchestrates Gemini calls, emoji retrieval, persistence, and UI state mutations.
+  - `MoodAnalyzer` enforces the prompt contract, handles API errors, validates color payloads, and maintains conversation context.
+  - `EmojiManager` pulls emoji groups from EmojiHub, generates floating emoji layers, and caches responses.
+  - `StorageManager` compresses histories, guards against storage quota overruns, and exposes lifecycle tooling (import/export/cleanup).
+  - `UIStateManager` maintains gradient layering, animation selection, and emoji presentation.
+- **Typed data contracts** live in `src/types/types.ts`, ensuring the Gemini payload and UI state stay consistent across React components, controllers, and persistence.
 
-### Processus Principal (src/main/index.ts)
-- Processus principal Electron gérant la création de fenêtres et l'intégration système
-- Script de préchargement pour l'exposition sécurisée des API (src/main/preload.ts)
+### Analysis Pipeline
 
-### Processus de Rendu
-- **Interface Utilisateur basée sur React** (src/renderer/App.tsx)
-- **Classes Core** (src/renderer/classes/index.ts) :
-  - [`ApplicationController`](src/renderer/classes/ApplicationController.ts) : Orchestrateur principal
-  - [`MoodAnalyzer`](src/renderer/classes/MoodAnalyzer.ts) : Intégration API Gemini
-  - [`EmojiManager`](src/renderer/classes/EmojiManager.ts) : Récupération et mise en cache des emojis
-  - [`StorageManager`](src/renderer/classes/StorageManager.ts) : Persistance des données
-  - [`UIStateManager`](src/renderer/classes/UIStateManager.ts) : Gestion de l'état visuel
-- **Composants UI** (src/renderer/components/ui/index.ts)
-- **Services** (src/services/index.ts) : Clients API
-- **Utilitaires** (src/utils/) : Helpers et traductions
+1. `UserInputArea` captures a message and delegates it to `handleSubmit` inside `useApplicationController`.
+2. `ApplicationController.processMessage` issues a Gemini request, validates the structured response, and records it in the conversation history.
+3. `EmojiManager` derives a palette of floating emojis based on Gemini’s grouping and prepares animation metadata.
+4. `UIStateManager` rotates background gradients, emoji animations, and layered renders so the UI reflects the inferred mood.
+5. `StorageManager` persists the updated history with compression and surfaces metrics through `getStatistics` for export or diagnostics.
 
-### Flux de Données Clé
+## Requirements
 
-1. L'utilisateur saisit un message dans [`UserInputArea`](src/renderer/components/ui/input/UserInputArea.tsx)
-2. [`ApplicationController.processMessage()`](src/renderer/classes/ApplicationController.ts) coordonne l'analyse
-3. [`MoodAnalyzer.analyze()`](src/renderer/classes/MoodAnalyzer.ts) appelle l'API Gemini
-4. [`EmojiManager`](src/renderer/classes/EmojiManager.ts) récupère les emojis pertinents
-5. [`UIStateManager`](src/renderer/classes/UIStateManager.ts) met à jour les éléments visuels
-6. Réponse affichée via [`ResponseArea`](src/renderer/components/ui/display/ResponseArea.tsx)
+- Node.js 18 or later
+- npm or yarn
+- Google Gemini API key with access to the configured model (defaults to `gemini-1.5-flash` in `appConstants`).
 
-## Installation
+## Getting Started
 
-### Prérequis
-
-- Node.js 18+
-- npm ou yarn
-- Clé API Google Gemini
-
-### Configuration
-
-1. Clonez le dépôt :
-```bash
-git clone <url-du-dépôt>
-cd feel
-```
-
-2. Installez les dépendances :
-```bash
+```powershell
+git clone <repository-url>
+cd Feel
 npm install
-```
-
-3. Créez le fichier d'environnement :
-```bash
-cp .env.development .env.local
-```
-
-4. Ajoutez votre clé API Gemini dans `.env.local` :
-```
-GEMINI_API_KEY=votre_clé_api_ici
-```
-
-5. Démarrez le développement :
-```bash
+Copy-Item .env.development .env.local
+notepad .env.local  # set GEMINI_API_KEY=<your key>
 npm start
 ```
 
-### Construction
+`npm start` launches Electron Forge in development mode with hot reload enabled. The Gemini key is read at runtime through the preload bridge; no `.env` data leaks into the renderer bundle.
 
-```bash
-npm run make
-```
+### Alternative Entrypoints
 
-## Configuration
+- `npm run start:web` – serves the renderer bundle in a web browser via `webpack-dev-server` for rapid UI iteration without Electron.
+- `npm run make` – produces platform-specific installers using Electron Forge makers (`squirrel`, `zip`, `deb`, `rpm`).
+- `npm run package` – generates unpackaged binaries for manual distribution.
 
-### Variables d'Environnement
+## Configuration Surface
 
-- [`GEMINI_API_KEY`](src/main/preload.ts) : Clé API requise pour Google Gemini
+- **Environment**: `GEMINI_API_KEY` (required). Extend `preload.ts` if additional secrets must be bridged, but keep context isolation enabled.
+- **Build tooling**: Webpack configs live under `config/webpack/`, with environment separation (`main`, `renderer`, `web`). Tailwind and PostCSS configuration reside in `config/tailwind.config.js` and `config/postcss.config.js`.
+- **Path aliases**: Defined in `config/tsconfig.json` (`@classes`, `@components`, `@types`, etc.) and mirrored in the Webpack alias configuration.
+- **Electron Forge**: `config/forge.config.js` wires the bundled entry points and enables auto-unpack of native modules.
 
-### Configuration de Construction
+## Runtime Behaviour
 
-- Configurations Webpack dans [`config/webpack`](config/webpack)
-- Configuration Electron Forge : [`config/forge.config.js`](config/forge.config.js)
-- Configuration Babel pour la compatibilité navigateur
+- **Security posture**: Node integration is disabled, `contextIsolation` is enabled, and CSP restricts network calls to Gemini and EmojiHub endpoints.
+- **Persistence**: Histories are stored in localStorage as compressed base64 strings. `StorageManager` auto-recovers from quota overruns and provides cleanup utilities.
+- **Error handling**: `GeminiAPIError` captures HTTP status, human-friendly messages, and network exceptions to keep the renderer responsive.
+- **Internationalisation**: Language selection flows through `ApplicationController.setLanguage`, and translations live in `src/utils/translations.tsx`.
 
-## Référence API
-
-### ApplicationController
-
-Contrôleur d'application principal coordonnant tous les sous-systèmes.
-
-```typescript
-export class ApplicationController {
-  async initialize(): Promise<void>
-  async processMessage(message: string): Promise<{response: GeminiMoodResponse, floatingEmojis: any[], conversationEntry: ConversationEntry}>
-  setLanguage(language: 'fr' | 'en'): void
-  setModel(model: string): void
-  exportData(): string
-  importData(jsonData: string): boolean
-  getStatistics(): object
-}
-```
-
-### MoodAnalyzer
-
-Gère la communication API Gemini et l'analyse d'humeur.
-
-```typescript
-export class MoodAnalyzer {
-  async analyze(message: string, language: string, model: string): Promise<GeminiMoodResponse>
-  addToHistory(userMessage: string, geminiResponse: GeminiMoodResponse): ConversationEntry
-  getHistory(): ConversationEntry[]
-  clearHistory(): void
-}
-```
-
-### EmojiManager
-
-Gère la récupération et la mise en cache des emojis.
-
-```typescript
-export class EmojiManager {
-  async getEmojisForMood(group: string): Promise<EmojiApiItem[]>
-  createFloatingEmojiData(emojis: EmojiApiItem[], maxCount: number): FloatingEmojiItem[]
-  async getDefaultEmoji(): Promise<string>
-  clearCache(): void
-}
-```
-
-### StorageManager
-
-Gère la persistance des données avec compression.
-
-```typescript
-export class StorageManager {
-  save(conversations: ConversationEntry[]): boolean
-  load(): ConversationEntry[]
-  clear(): boolean
-  export(): string
-  import(jsonData: string): boolean
-  cleanup(keepCount: number): number
-}
-```
-
-### UIStateManager
-
-Gère les états visuels et les animations.
-
-```typescript
-export class UIStateManager {
-  updateBackgroundColors(newColors: string[]): void
-  updateUserEmoji(emoji: string, animation?: string): void
-  updateFloatingEmojis(emojis: FloatingEmojiItem[]): void
-  getState(): object
-}
-```
-
-## Composants
-
-### Composants Principaux
-
-- [`MainInterface`](src/renderer/components/MainInterface.tsx) : Composant de mise en page racine
-- [`App`](src/renderer/App.tsx) : Point d'entrée de l'application
-
-### Composants UI
-
-- **Affichage** : [`ResponseArea`](src/renderer/components/ui/display/ResponseArea.tsx), [`BackgroundGradient`](src/renderer/components/ui/display/BackgroundGradient.tsx)
-- **Saisie** : [`UserInputArea`](src/renderer/components/ui/input/UserInputArea.tsx), [`CharacterCounter`](src/renderer/components/ui/input/CharacterCounter.tsx)
-- **Boutons** : [`SubmitButton`](src/renderer/components/ui/buttons/SubmitButton.tsx), [`SettingsButton`](src/renderer/components/ui/buttons/SettingsButton.tsx)
-- **Paramètres** : [`LanguageSelector`](src/renderer/components/ui/settings/LanguageSelector.tsx), [`ModelSelector`](src/renderer/components/ui/settings/ModelSelector.tsx), [`TypewriterSpeedControl`](src/renderer/components/ui/settings/TypewriterSpeedControl.tsx)
-- **Popups** : [`SettingsPopup`](src/renderer/components/ui/popups/SettingsPopup.tsx), [`ConfirmationPopup`](src/renderer/components/ui/popups/ConfirmationPopup.tsx)
-- **Historique** : [`ConversationHistory`](src/renderer/components/ui/history/ConversationHistory.tsx)
-
-### Hooks
-
-- [`useApplicationController`](src/renderer/hooks/useApplicationController.ts) : Hook principal d'application
-
-## Développement
-
-### Structure du Projet
+## Project Layout
 
 ```
 src/
-├── main/                 # Processus principal Electron
-├── renderer/             # Processus de rendu React
-│   ├── classes/          # Logique métier core
-│   ├── components/       # Composants React
-│   ├── hooks/            # Hooks React personnalisés
-│   ├── styles/           # CSS et styles
-│   └── utils/            # Utilitaires et helpers
-├── services/             # Clients API externes
-├── types/                # Définitions TypeScript
-└── utils/                # Utilitaires partagés
+├─ main/            # Electron entry point and preload bridge
+├─ renderer/
+│  ├─ classes/      # Controllers, analysers, storage, UI state
+│  ├─ components/   # React UI broken into domain-specific folders
+│  ├─ hooks/        # React hooks (useApplicationController, etc.)
+│  ├─ styles/       # Tailwind base styles and bespoke animations
+│  └─ utils/        # Translation catalogues and helper utilities
+├─ types/           # Shared TypeScript contracts
+└─ utils/           # Cross-layer utilities (if needed)
 ```
 
-### Scripts
+## Development Tooling
 
-- `npm start` : Démarrer le développement avec rechargement à chaud
-- `npm run start:web` : Démarrer la version web pour les tests
-- `npm run package` : Créer un package distribuable
-- `npm run make` : Construire les installateurs spécifiques à la plateforme
-- `npm run lint` : Exécuter ESLint
-- `npm run format` : Formater le code avec Prettier
+- `npm run lint` – ESLint with the project’s custom config under `config/eslint.config.js`.
+- `npm run lint:fix` – applies autofixes.
+- `npm run format` – Prettier for TypeScript, JavaScript, JSON, and CSS inside `src/`.
+- Tailwind classes are purged according to the paths declared in `tailwind.config.js`, so keep new UI files inside the tracked directories.
 
-### Technologies
+## Packaging Notes
 
-- **Frontend** : React 18, TypeScript, Tailwind CSS
-- **Backend** : Electron, Node.js
-- **Construction** : Webpack, Babel, Electron Forge
-- **APIs** : Google Gemini AI, EmojiHub API
-- **Stockage** : localStorage avec compression
+- Release builds run under `NODE_ENV=production`, activating the Electron Forge `fuses` plugin to strip devtools and disable Chromium features not required at runtime.
+- The main bundle is emitted to `.webpack/main`, and the renderer bundle is produced under `.webpack/renderer`. Installers land in the `out/` directory.
+- Update the `productName` in `package.json` before distributing signed builds.
 
-### Compatibilité Navigateur
+## Extending the Application
 
-Configuré pour les 3 dernières versions de navigateurs via preset-env Babel.
+- Add new mood visualisations by extending `UIStateManager` and wiring components through `useApplicationController`.
+- Surface additional Gemini metadata by expanding `GeminiMoodResponse` in `src/types/types.ts` and adjusting `MoodAnalyzer.validateResponse`.
+- Introduce alternative storage backends by implementing a new persistence class and injecting it into `ApplicationController`.
+- When adding new APIs, extend the CSP and the preload bridge deliberately; avoid enabling full Node integration.
+
+## Troubleshooting
+
+- Blank responses typically indicate a missing or invalid `GEMINI_API_KEY`; verify the value injected through the preload bridge.
+- If the UI shows a generic error, inspect the developer tools console (`Ctrl+Shift+I`) for detailed `GeminiAPIError` logs.
+- Storage quota issues trigger automatic cleanup, but you can manually call `StorageManager.cleanup()` via the console for diagnostics.
+
+## License
+
+Feel is released under the MIT License. Review `package.json` for author metadata and update attribution before public distribution.
